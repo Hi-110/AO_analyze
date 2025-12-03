@@ -1,11 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>波前误差分析工具</title>
+    <title>基于自适应光学校正的望远镜单模耦合效率分析</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
     <style>
         :root {
             --primary-bg: #0a0e17;
@@ -20,10 +20,9 @@
             --text-lighter: #ffffff;
             --border-color: #2a3a5c;
             --card-bg: rgba(26, 35, 58, 0.7);
-            --atmosphere-color: rgba(0, 188, 212, 0.1);
-            --telescope-color: rgba(138, 43, 226, 0.1);
-            --ao-color: rgba(76, 175, 80, 0.1);
-            --sensor-color: rgba(255, 152, 0, 0.1);
+            --input-param-color: #4caf50;
+            --calc-param-color: #ff9800;
+            --result-param-color: #f44336;
         }
         
         * {
@@ -43,33 +42,65 @@
         }
         
         .container {
-            max-width: 1600px;
+            max-width: 1400px;
             margin: 0 auto;
-            display: grid;
-            grid-template-columns: 400px 1fr;
-            gap: 20px;
         }
         
-        .left-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
+        .tab-container {
+            margin-bottom: 20px;
         }
         
-        .right-panel {
+        .tab-buttons {
             display: flex;
-            flex-direction: column;
-            gap: 20px;
+            background: var(--card-bg);
+            border-radius: 10px 10px 0 0;
+            overflow: hidden;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 15px 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-light);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .tab-btn.active {
+            background: var(--secondary-bg);
+            color: var(--accent-cyan);
+            border-bottom: 3px solid var(--accent-cyan);
+        }
+        
+        .tab-btn:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .tab-content {
+            display: none;
+            background: var(--card-bg);
+            border-radius: 0 0 10px 10px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .tab-content.active {
+            display: block;
         }
         
         header {
             text-align: center;
+            margin-bottom: 30px;
             padding: 20px;
             background: var(--card-bg);
             border-radius: 10px;
             border: 1px solid var(--border-color);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            grid-column: 1 / -1;
         }
         
         h1, h2, h3 {
@@ -90,6 +121,7 @@
             background: var(--card-bg);
             border-radius: 10px;
             padding: 20px;
+            margin-bottom: 25px;
             border: 1px solid var(--border-color);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
             transition: all 0.3s ease;
@@ -101,8 +133,8 @@
         }
         
         .param-group {
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 15px;
             margin-bottom: 15px;
         }
@@ -220,124 +252,6 @@
             padding: 15px;
         }
         
-        .error-breakdown {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-        
-        .error-item {
-            background: rgba(15, 25, 50, 0.8);
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        }
-        
-        .error-title {
-            font-weight: 600;
-            margin-bottom: 5px;
-            color: var(--accent-cyan);
-        }
-        
-        .error-percentage {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--text-lighter);
-        }
-        
-        .mermaid {
-            background: rgba(15, 25, 50, 0.5);
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-            max-height: 600px;
-            overflow-y: auto;
-        }
-        
-        .file-controls {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-            flex-wrap: wrap;
-        }
-        
-        .file-input {
-            display: none;
-        }
-        
-        .param-category {
-            padding: 10px 15px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-        }
-        
-        .atmosphere {
-            background-color: var(--atmosphere-color);
-            border-left: 4px solid var(--accent-cyan);
-        }
-        
-        .telescope {
-            background-color: var(--telescope-color);
-            border-left: 4px solid var(--accent-purple);
-        }
-        
-        .ao {
-            background-color: var(--ao-color);
-            border-left: 4px solid var(--accent-green);
-        }
-        
-        .sensor {
-            background-color: var(--sensor-color);
-            border-left: 4px solid var(--accent-orange);
-        }
-        
-        .expandable {
-            margin-top: 15px;
-        }
-        
-        .expand-btn {
-            background: transparent;
-            border: 1px solid var(--accent-cyan);
-            color: var(--accent-cyan);
-            padding: 8px 15px;
-            font-size: 14px;
-            margin: 0;
-            width: 100%;
-        }
-        
-        .expand-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 5px;
-            padding: 0 15px;
-        }
-        
-        .expand-content.expanded {
-            max-height: 500px;
-            padding: 15px;
-        }
-        
-        .formula-section {
-            background: rgba(15, 25, 50, 0.5);
-            border-radius: 8px;
-            padding: 15px;
-            margin: 15px 0;
-        }
-        
-        .formula {
-            font-family: 'Courier New', monospace;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 10px;
-            border-radius: 4px;
-            margin: 10px 0;
-            border-left: 3px solid var(--accent-cyan);
-        }
-        
         .chart-controls {
             display: flex;
             flex-wrap: wrap;
@@ -352,23 +266,337 @@
             min-width: 200px;
         }
         
-        @media (max-width: 1200px) {
-            .container {
-                grid-template-columns: 1fr;
-            }
-            
-            .left-panel, .right-panel {
-                width: 100%;
-            }
+        .dual-chart-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .triple-chart-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .single-chart-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .data-flow-diagram {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .data-flow-group {
+            background: rgba(15, 25, 50, 0.8);
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid var(--accent-cyan);
+        }
+        
+        .data-flow-title {
+            font-weight: 600;
+            color: var(--accent-cyan);
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 5px;
+        }
+        
+        .data-flow-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+        }
+        
+        .param-name {
+            color: #b0b0b0;
+        }
+        
+        .param-symbol {
+            font-style: italic;
+            color: var(--accent-orange);
+        }
+        
+        .param-value {
+            font-weight: 600;
+        }
+        
+        .input-param {
+            color: var(--input-param-color);
+        }
+        
+        .calc-param {
+            color: var(--calc-param-color);
+        }
+        
+        .result-param {
+            color: var(--result-param-color);
+        }
+        
+        .scenario-description {
+            background: rgba(15, 25, 50, 0.8);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            line-height: 1.8;
+        }
+        
+        .scenario-highlight {
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+        
+        .result-callout {
+            background: linear-gradient(90deg, rgba(0, 188, 212, 0.1), rgba(138, 43, 226, 0.1));
+            border-left: 4px solid var(--accent-cyan);
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        /* 公式显示样式 */
+        .formula-group {
+            margin: 30px 0;
+        }
+        
+        .formula-group h3 {
+            color: var(--accent-cyan);
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-left: 4px solid var(--accent-cyan);
+            padding-left: 15px;
+        }
+        
+        .formula-card {
+            background: rgba(15, 25, 50, 0.8);
+            border-radius: 8px;
+            padding: 25px;
+            margin: 15px 0;
+            border-left: 4px solid var(--accent-cyan);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .formula-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: var(--text-lighter);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .formula-expression {
+            font-family: 'Cambria Math', 'Times New Roman', serif;
+            font-size: 1.4em;
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        
+        .formula-explanation {
+            color: #b0b0b0;
+            line-height: 1.6;
+            margin-top: 15px;
+        }
+        
+        .formula-explanation strong {
+            color: var(--text-lighter);
+        }
+        
+        .formula-explanation ul {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+        
+        .formula-explanation li {
+            margin: 5px 0;
+        }
+        
+        .threshold-card {
+            background: rgba(15, 25, 50, 0.8);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            border-left: 4px solid var(--accent-cyan);
+            transition: transform 0.3s ease;
+        }
+        
+        .threshold-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        .threshold-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: var(--text-lighter);
+            margin-bottom: 10px;
+        }
+        
+        .threshold-value {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            margin: 10px 0;
+        }
+        
+        .threshold-description {
+            color: #a0a0a0;
+            font-size: 0.9em;
+        }
+        
+        /* 数学符号样式 */
+        sub, sup {
+            font-size: 0.7em;
+            line-height: 0;
+            position: relative;
+            vertical-align: baseline;
+        }
+        
+        sup {
+            top: -0.5em;
+        }
+        
+        sub {
+            bottom: -0.25em;
+        }
+        
+        /* 公式显示样式 */
+        .formula-group {
+            margin: 30px 0;
+        }
+        
+        .formula-group h3 {
+            color: var(--accent-cyan);
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-left: 4px solid var(--accent-cyan);
+            padding-left: 15px;
+        }
+        
+        .formula-card {
+            background: rgba(15, 25, 50, 0.8);
+            border-radius: 8px;
+            padding: 25px;
+            margin: 15px 0;
+            border-left: 4px solid var(--accent-cyan);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .formula-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: var(--text-lighter);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .formula-expression {
+            font-family: 'Cambria Math', 'Times New Roman', serif;
+            font-size: 1.4em;
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        
+        .formula-explanation {
+            color: #b0b0b0;
+            line-height: 1.6;
+            margin-top: 15px;
+        }
+        
+        .formula-explanation strong {
+            color: var(--text-lighter);
+        }
+        
+        .formula-explanation ul {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+        
+        .formula-explanation li {
+            margin: 5px 0;
+        }
+        
+        .threshold-card {
+            background: rgba(15, 25, 50, 0.8);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            border-left: 4px solid var(--accent-cyan);
+            transition: transform 0.3s ease;
+        }
+        
+        .threshold-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        .threshold-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: var(--text-lighter);
+            margin-bottom: 10px;
+        }
+        
+        .threshold-value {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            margin: 10px 0;
+        }
+        
+        .threshold-description {
+            color: #a0a0a0;
+            font-size: 0.9em;
+        }
+        
+        /* 数学符号样式 */
+        sub, sup {
+            font-size: 0.7em;
+            line-height: 0;
+            position: relative;
+            vertical-align: baseline;
+        }
+        
+        sup {
+            top: -0.5em;
+        }
+        
+        sub {
+            bottom: -0.25em;
         }
         
         @media (max-width: 768px) {
-            .param-group, .results-grid, .error-breakdown {
+            .param-group, .results-grid, .dual-chart-container, .triple-chart-container, .single-chart-container {
                 grid-template-columns: 1fr;
             }
             
             .chart-controls {
                 flex-direction: column;
+            }
+            
+            .tab-buttons {
+                flex-direction: column;
+            }
+            
+            .tab-btn {
+                width: 100%;
             }
         }
     </style>
@@ -376,45 +604,60 @@
 <body>
     <div class="container">
         <header>
-            <h1>波前误差分析工具 - 布局优化版</h1>
-            <p>天文自适应光学系统波前残差计算与可视化分析</p>
+            <h1>波前误差分析工具</h1>
+            <p>冷湖2米望远镜单模耦合效率分析系统</p>
         </header>
         
-        <div class="left-panel">
-            <section class="section">
-                <h2>系统参数配置</h2>
-                
-                <div class="file-controls">
-                    <button id="saveParamsBtn">保存参数</button>
-                    <button id="loadParamsBtn" class="secondary">载入参数</button>
-                    <input type="file" id="fileInput" class="file-input" accept=".json">
-                    <button id="resetBtn" class="secondary">重置参数</button>
-                </div>
-                
-                <div class="param-category atmosphere">
-                    <h3>大气环境参数</h3>
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <button class="tab-btn" data-tab="system">系统说明与数据流</button>
+                <button class="tab-btn" data-tab="formulas">计算公式说明</button>
+                <button class="tab-btn active" data-tab="analysis">参数配置与分析</button>
+                <button class="tab-btn" data-tab="coupling">单模耦合效率分析</button>
+            </div>
+            
+            <!-- 参数配置与分析选项卡 -->
+            <div id="analysis" class="tab-content active">
+                <section class="section">
+                    <h2>系统参数配置</h2>
+                    
+                    <div class="file-controls">
+                        <button id="saveParamsBtn">保存参数配置</button>
+                        <button id="loadParamsBtn" class="secondary">载入参数配置</button>
+                        <input type="file" id="fileInput" accept=".json" style="display: none;">
+                        <button id="resetBtn" class="secondary">重置为默认值</button>
+                    </div>
+                    
                     <div class="param-group">
                         <div class="param-item">
                             <label>r0参考值 (cm) @550nm</label>
-                            <input type="number" id="r0_ref" value="10" step="0.1" min="1" max="30">
+                            <input type="number" id="r0_ref" value="13.89" step="0.1" min="1" max="30">
                         </div>
+                        <div class="param-item">
+                            <label>Greenwood频率 f_G (Hz) @550nm</label>
+                            <input type="number" id="f_G" value="50" step="5" min="10" max="500">
+                        </div>
+                    </div>
+                    
+                    <div class="param-group">
                         <div class="param-item">
                             <label>导星波长 (nm)</label>
                             <input type="number" id="wavelength_guide" value="589" step="1" min="400" max="1000">
                         </div>
                         <div class="param-item">
+                            <label>导星星等</label>
+                            <input type="number" id="magnitude" value="8.0" step="0.1" min="0" max="20">
+                        </div> 
+                        <div class="param-item">
                             <label>天顶大气透过率</label>
                             <input type="number" id="tau_a" value="0.9" step="0.05" min="0.1" max="1.0">
                         </div>
                         <div class="param-item">
-                            <label>Greenwood频率 f_G (Hz)</label>
-                            <input type="number" id="f_G" value="50" step="5" min="10" max="500">
+                            <label>仰角 (度)</label>
+                            <input type="number" id="elevation" value="60" step="1" min="0" max="90">
                         </div>
                     </div>
-                </div>
-                
-                <div class="param-category telescope">
-                    <h3>望远镜系统参数</h3>
+                    
                     <div class="param-group">
                         <div class="param-item">
                             <label>望远镜口径 (m)</label>
@@ -425,22 +668,28 @@
                             <input type="number" id="epsilon" value="0.18" step="0.01" min="0" max="0.5">
                         </div>
                         <div class="param-item">
-                            <label>仰角 (度)</label>
-                            <input type="number" id="elevation" value="60" step="1" min="0" max="90">
-                        </div>
-                        <div class="param-item">
                             <label>光学系统效率</label>
                             <input type="number" id="tau_o" value="0.8" step="0.05" min="0.1" max="1.0">
                         </div>
+                        <div class="param-item">
+                            <label>观测波长 (nm)</label>
+                            <input type="number" id="wavelength_target" value="1550" step="10" min="1000" max="2000">
+                        </div>
                     </div>
-                </div>
-                
-                <div class="param-category ao">
-                    <h3>自适应光学参数</h3>
+
+                     <!--
+                    <div class="param-group">
+                        <div class="param-item">
+                            <label>仰角 (度)</label>
+                            <input type="number" id="elevation" value="60" step="1" min="0" max="90">
+                        </div>
+                    </div>
+                -->
+                    
                     <div class="param-group">
                         <div class="param-item">
                             <label>DM单元数 N</label>
-                            <input type="number" id="N" value="400" step="10" min="50" max="1000">
+                            <input type="number" id="N" value="468" step="10" min="50" max="1000">
                         </div>
                         <div class="param-item">
                             <label>帧频 f_frame (Hz)</label>
@@ -450,6 +699,9 @@
                             <label>系统带宽比</label>
                             <input type="number" id="f_e3db_ratio" value="25" step="1" min="20" max="35">
                         </div>
+                    </div>
+
+                    <div class="param-group">
                         <div class="param-item">
                             <label>拟合误差系数</label>
                             <input type="number" id="k_fitting" value="0.3" step="0.05" min="0.1" max="1.0">
@@ -459,15 +711,8 @@
                             <input type="number" id="sigma_miscel" value="0.05" step="0.01" min="0" max="0.5">
                         </div>
                     </div>
-                </div>
-                
-                <div class="param-category sensor">
-                    <h3>波前传感器参数</h3>
+                    
                     <div class="param-group">
-                        <div class="param-item">
-                            <label>导星星等</label>
-                            <input type="number" id="magnitude" value="8.0" step="0.1" min="0" max="20">
-                        </div>
                         <div class="param-item">
                             <label>量子效率</label>
                             <input type="number" id="eta" value="0.9" step="0.05" min="0.1" max="1.0">
@@ -480,206 +725,617 @@
                             <label>暗电流 (e-/pixel/s)</label>
                             <input type="number" id="I_D" value="0.01" step="0.01" min="0" max="1">
                         </div>
+                    </div>
+                    
+                    <div class="param-group">
                         <div class="param-item">
                             <label>子光斑像素数</label>
                             <input type="number" id="K" value="9" step="1" min="4" max="64">
                         </div>
+                         <!--   -->
+                        <div class="param-item">
+                            <label>系统等效焦距 (m)</label>
+                            <input type="number" id="focal_length" value="30.0" step="1.0" min="10" max="100">
+                        </div>
+                        <div class="param-item">
+                            <label>光纤模场直径 (μm)</label>
+                            <input type="number" id="mfd" value="10.4" step="0.1" min="5" max="20">
+                        </div>
+                        <div class="param-item">
+                            <label>跟踪误差 (μrad)</label>
+                            <input type="number" id="tracking_error" value="5.0" step="0.5" min="0" max="50">
+                        </div>
+                        <div class="param-item">
+                            <label>模式匹配效率</label>
+                            <input type="number" id="eta_mode" value="0.7" step="0.01" min="0.8" max="1.0">
+                        </div>
+                        <div class="param-item">
+                            <label>跟瞄效率</label>
+                            <input type="number" id="eta_tracking" value="0.98" step="0.01" min="0.9" max="1.0">
+                        </div>
+                        <!-- -->
                     </div>
-                </div>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button id="calculateBtn">计算波前误差</button>
+                    </div>
+                </section>
                 
-                <div style="text-align: center; margin-top: 20px;">
-                    <button id="calculateBtn">计算波前误差</button>
-                </div>
-            </section>
-        </div>
-        
-        <div class="right-panel">
-            <section class="section">
-                <h2>参数关系流程图</h2>
-                <div class="mermaid">
-flowchart TD
-    A[大气环境参数] --> E[波前误差计算]
-    A1[r0参考值 r₀<br>@550nm] --> A
-    A2[导星波长 λ<sub>guide</sub>] --> A
-    A3[大气透过率 τ<sub>a</sub>] --> A
-    A4[Greenwood频率 f<sub>G</sub>] --> A
-    
-    B[望远镜系统参数] --> E
-    B1[望远镜口径 D] --> B
-    B2[遮拦比 ε] --> B
-    B3[仰角 θ] --> B
-    B4[光学系统效率 τ<sub>o</sub>] --> B
-    
-    C[自适应光学参数] --> E
-    C1[DM单元数 N] --> C
-    C2[帧频 f<sub>frame</sub>] --> C
-    C3[系统带宽比 f<sub>e3db</sub>] --> C
-    C4[拟合误差系数 k<sub>fitting</sub>] --> C
-    C5[杂项误差 σ<sub>miscel</sub>] --> C
-    
-    D[波前传感器参数] --> E
-    D1[导星星等 m<sub>v</sub>] --> D
-    D2[量子效率 η] --> D
-    D3[读出噪声 σ<sub>R</sub>] --> D
-    D4[暗电流 I<sub>D</sub>] --> D
-    D5[子光斑像素数 K] --> D
-    
-    E --> F[总波前误差 σ<sup>2</sup><sub>total</sub>]
-    E1[拟合误差 σ<sup>2</sup><sub>fitting</sub>] --> E
-    E2[时间误差 σ<sup>2</sup><sub>temporal</sub>] --> E
-    E3[噪声误差 σ<sup>2</sup><sub>noise</sub>] --> E
-    E4[杂项误差 σ<sup>2</sup><sub>miscel</sub>] --> E
-    
-    F --> G[斯特列尔比 SR]
-    G --> H[等效纳米误差 @1550nm]
-    H --> I[单模耦合效率 η<sub>SMF</sub>]
-    
-    J[模式匹配效率] --> I
-    K[精跟踪脱靶量] --> I
-                </div>
-            </section>
-            
-            <section class="section">
-                <h2>计算结果</h2>
-                
-                <div class="results-grid">
-                    <div class="result-card">
-                        <h3>总波前误差</h3>
-                        <div class="result-value" id="total_error">-</div>
-                        <div class="result-desc">均方根误差 (rad)</div>
+                <section class="section">
+                    <h2>计算结果</h2>
+                    
+                    <h3>中间计算结果</h3>
+                    <div class="intermediate-vars" id="intermediate_vars">
+                        <!-- 中间变量将通过JS动态生成 -->
                     </div>
                     
-                    <div class="result-card">
-                        <h3>等效纳米误差</h3>
-                        <div class="result-value" id="nm_error">-</div>
-                        <div class="result-desc">@1550nm波长 (nm)</div>
-                    </div>
-                    
-                    <div class="result-card">
-                        <h3>斯特列尔比</h3>
-                        <div class="result-value" id="sr_value">-</div>
-                        <div class="result-desc">成像质量指标</div>
-                    </div>
-                    
-                    <div class="result-card">
-                        <h3>目标评估</h3>
-                        <div class="result-value" id="target_eval">-</div>
-                        <div class="result-desc">λ/4@1550nm (387.5nm)</div>
-                    </div>
-                </div>
-                
-                <h3>误差分量分析</h3>
-                <div class="error-breakdown">
-                    <div class="error-item">
-                        <div class="error-title">拟合误差</div>
-                        <div class="error-percentage" id="fitting_percent">-</div>
-                        <div class="result-desc">方差: <span id="fitting_variance">-</span> rad²</div>
-                    </div>
-                    
-                    <div class="error-item">
-                        <div class="error-title">时间误差</div>
-                        <div class="error-percentage" id="temporal_percent">-</div>
-                        <div class="result-desc">方差: <span id="temporal_variance">-</span> rad²</div>
-                    </div>
-                    
-                    <div class="error-item">
-                        <div class="error-title">噪声误差</div>
-                        <div class="error-percentage" id="noise_percent">-</div>
-                        <div class="result-desc">方差: <span id="noise_variance">-</span> rad²</div>
-                    </div>
-                    
-                    <div class="error-item">
-                        <div class="error-title">杂项误差</div>
-                        <div class="error-percentage" id="misc_percent">-</div>
-                        <div class="result-desc">方差: <span id="misc_variance">-</span> rad²</div>
-                    </div>
-                </div>
-                
-                <h3>中间计算结果</h3>
-                <div class="intermediate-vars" id="intermediate_vars">
-                    <!-- 中间变量将通过JS动态生成 -->
-                </div>
-                
-                <div class="expandable">
-                    <button class="expand-btn" id="toggleFormulasBtn">显示计算公式</button>
-                    <div class="expand-content" id="formulasContent">
-                        <div class="formula-section">
-                            <h4>光子流量密度</h4>
-                            <div class="formula">φ_s = 4×10^6 × 10^(-m_v/2.5) photons/cm²-s</div>
-                            
-                            <h4>子孔径参数</h4>
-                            <div class="formula">D_sub = D / √N</div>
-                            <div class="formula">A_sub = π × (D_sub/2)²</div>
-                            <div class="formula">A_effective = A_sub × (1 - ε²)</div>
-                            
-                            <h4>信号电子数</h4>
-                            <div class="formula">S_M = (φ_s × η × t_int × A_effective × τ_a × τ_o) / K</div>
-                            
-                            <h4>信噪比</h4>
-                            <div class="formula">SNR = S_M / √(S_M + σ_R² + t_int × I_D)</div>
-                            
-                            <h4>导星波长r0</h4>
-                            <div class="formula">r0_guide = r0_ref × (λ_guide/λ_ref)^1.2</div>
-                            
-                            <h4>误差分量</h4>
-                            <div class="formula">σ²_fitting = k × (D/r0_guide)^(5/3) × N^(-5/6)</div>
-                            <div class="formula">σ²_temporal = (f_G / f_e3db)^(5/3)</div>
-                            <div class="formula">σ²_noise = 1 / SNR²</div>
-                            <div class="formula">σ²_total = σ²_fitting + σ²_temporal + σ²_noise + σ²_miscel</div>
-                            
-                            <h4>斯特列尔比</h4>
-                            <div class="formula">SR = exp(-σ²_total)</div>
-                            
-                            <h4>等效纳米误差</h4>
-                            <div class="formula">σ_nm = σ_total × λ / (2π) × 10^9</div>
+                    <h3>误差分量分析</h3>
+                    <div class="results-grid">
+                        <div class="result-card">
+                            <h3>拟合误差</h3>
+                            <div class="result-value" id="fitting_error">-</div>
+                            <div class="result-desc">方差: <span id="fitting_variance">-</span> rad²</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h3>时间误差</h3>
+                            <div class="result-value" id="temporal_error">-</div>
+                            <div class="result-desc">方差: <span id="temporal_variance">-</span> rad²</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h3>噪声误差</h3>
+                            <div class="result-value" id="noise_error">-</div>
+                            <div class="result-desc">方差: <span id="noise_variance">-</span> rad²</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h3>杂项误差</h3>
+                            <div class="result-value" id="misc_error">-</div>
+                            <div class="result-desc">方差: <span id="misc_variance">-</span> rad²</div>
                         </div>
                     </div>
-                </div>
-            </section>
+                    
+                    <h3>最终计算结果</h3>
+                    <div class="results-grid">
+                        <div class="result-card">
+                            <h3>总波前误差</h3>
+                            <div class="result-value" id="total_error">-</div>
+                            <div class="result-desc">均方根误差 (rad) @ 导星波长</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h3>波前误差(RMS)</h3>
+                            <div class="result-value" id="nm_error">-</div>
+                            <div class="result-desc">nm</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h3>斯特列尔比</h3>
+                            <div class="result-value" id="sr_value">-</div>
+                            <div class="result-desc">成像质量指标 @ 观测波长</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h3>目标评估</h3>
+                            <div class="result-value" id="target_eval">-</div>
+                            <div class="result-desc">λ/4@1550nm (387.5nm)</div>
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="section">
+                    <h2>参数变化分析</h2>
+                    
+                    <div class="chart-controls">
+                        <div class="chart-control-item">
+                            <label>分析参数</label>
+                            <select id="paramSelect">
+                                <option value="r0_ref">r0 (大气相干长度)</option>
+                                <option value="N">DM单元数</option>
+                                <option value="f_frame">帧频</option>
+                                <option value="f_G">Greenwood频率</option>
+                                <option value="magnitude">导星星等</option>
+                                <option value="elevation">仰角</option>
+                            </select>
+                        </div>
+                        <div class="chart-control-item">
+                            <label>最小值</label>
+                            <input type="number" id="paramMin" value="5" step="1">
+                        </div>
+                        <div class="chart-control-item">
+                            <label>最大值</label>
+                            <input type="number" id="paramMax" value="20" step="1">
+                        </div>
+                        <div class="chart-control-item">
+                            <label>步进值</label>
+                            <input type="text" id="paramStep" value="1" placeholder="例: 1 或 0.5">
+                        </div>
+                        <div class="chart-control-item" style="justify-content: flex-end;">
+                            <button id="updateChartBtn">更新分析图表</button>
+                        </div>
+                    </div>
+                    
+                    <div class="single-chart-container">
+                        <div class="chart-container">
+                            <canvas id="errorChart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="nmChart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="srChart"></canvas>
+                        </div>
+                    </div>
+                </section>
+            </div>
             
-            <section class="section">
-                <h2>参数变化分析</h2>
-                <div class="chart-controls">
-                    <div class="chart-control-item">
-                        <label>分析参数</label>
-                        <select id="paramSelect">
-                            <option value="r0_ref">r0 (大气相干长度)</option>
-                            <option value="N">DM单元数</option>
-                            <option value="f_frame">帧频</option>
-                            <option value="f_G">Greenwood频率</option>
-                            <option value="magnitude">导星星等</option>
-                            <option value="elevation">仰角</option>
-                        </select>
+            <!-- 系统说明与数据流选项卡 -->
+            <div id="system" class="tab-content">
+                <section class="section">
+                    <h2>系统说明 - 冷湖2米望远镜单模耦合分析</h2>
+                    
+                    <div class="scenario-description">
+                        <h3>应用场景概述</h3>
+                        <p>本系统专门为<span class="scenario-highlight">冷湖天文观测基地2米口径望远镜</span>的单模光纤耦合效率分析而设计。通过计算自适应光学系统补偿后的波前误差，评估<span class="scenario-highlight">斯特列尔比(SR)</span>，进而估计单模耦合效率，为高分辨率光谱观测和系外行星探测提供理论依据。</p>
+                        <br>
+                        <h3>技术方法</h3>
+                        <p>系统采用<span class="scenario-highlight">四分量误差模型</span>，分别计算拟合误差、时间误差、噪声误差和杂项误差：</p>
+                        <ul>
+                            <li><strong>拟合误差</strong>: 与变形镜促动器数量和大气相干长度相关，反映空间校正能力</li>
+                            <li><strong>时间误差</strong>: 与Greenwood频率和系统带宽相关，反映时间校正能力</li>
+                            <li><strong>噪声误差</strong>: 与导星亮度、探测器性能相关，反映测量精度</li>
+                            <li><strong>杂项误差</strong>: 包含校准、对准等未建模误差源</li>
+                        </ul>
+                        <br>
+                        <h3>参数影响分析</h3>
+                        <p>通过旋转关键参数配置，系统可分析不同观测条件下自适应光学系统的性能表现：</p>
+                        <ul>
+                            <li><strong>大气条件</strong>: r0值直接影响拟合误差，优良台址可显著提升性能</li>
+                            <li><strong>导星特性</strong>: 星等和波长决定信噪比，影响噪声误差分量</li>
+                            <li><strong>系统配置</strong>: DM单元数、帧频等参数需要优化平衡</li>
+                            <li><strong>观测几何</strong>: 仰角影响大气路径长度和湍流强度</li>
+                        </ul>
                     </div>
-                    <div class="chart-control-item">
-                        <label>最小值</label>
-                        <input type="number" id="paramMin" value="5" step="1">
-                    </div>
-                    <div class="chart-control-item">
-                        <label>最大值</label>
-                        <input type="number" id="paramMax" value="20" step="1">
-                    </div>
-                    <div class="chart-control-item">
-                        <label>点数</label>
-                        <input type="number" id="paramPoints" value="10" step="1" min="5" max="20">
-                    </div>
-                    <div class="chart-control-item" style="justify-content: flex-end;">
-                        <button id="updateChartBtn">更新分析图表</button>
-                    </div>
-                </div>
+                </section>
                 
-                <div class="chart-container">
-                    <canvas id="errorChart"></canvas>
-                </div>
+                <section class="section">
+                    <h2>波前残差与斯特列尔比关系分析</h2>
+                    
+                    <div style="margin-bottom: 20px; padding: 15px; background: rgba(0, 0, 0, 0.3); border-radius: 8px;">
+                        <h3>理论公式</h3>
+                        <div style="text-align: center; font-family: monospace; font-size: 1.2em; margin: 15px 0;">
+                            SR = exp(-(2π/λ)<sup>2</sup> × σ<sub>nm</sub><sup>2</sup>)
+                        </div>
+                        <p><strong>参数说明：</strong></p>
+                        <ul>
+                            <li><strong>SR</strong>：斯特列尔比，反映波前质量对成像质量的影响</li>
+                            <li><strong>λ</strong>：波长（nm），不同波长对应不同的SR值</li>
+                            <li><strong>σ<sub>nm</sub></strong>：波前误差的均方根值（nm）</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="single-chart-container">
+                        <div class="chart-container">
+                            <canvas id="wavefrontSRChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: rgba(0, 0, 0, 0.3); border-radius: 8px;">
+                        <h3>关键阈值参考（基于1550nm观测波长）</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 15px 0;">
+                            
+                            <div style="padding: 10px; background: rgba(255, 193, 7, 0.2); border-radius: 5px;">
+                                <strong>λ/10 (~155nm)</strong><br>SR = 67.0%
+                            </div>
+                            <div style="padding: 10px; background: rgba(255, 152, 0, 0.2); border-radius: 5px;">
+                                <strong>λ/8 (~194nm)</strong><br>SR = 52.8%
+                            </div>
+                            <div style="padding: 10px; background: rgba(244, 67, 54, 0.2); border-radius: 5px;">
+                                <strong>λ/6 (~258nm)</strong><br>SR = 28.7%
+                            </div>
+                            <div style="padding: 10px; background: rgba(103, 58, 183, 0.2); border-radius: 5px;">
+                                <strong>λ/4 (~387nm)</strong><br>SR = 7.2%
+                            </div>
+                            <div style="padding: 10px; background: rgba(63, 81, 181, 0.2); border-radius: 5px;">
+                                <strong>λ/3 (~517nm)</strong><br>SR = 1.8%
+                            </div>
+                        </div>
+                        <p style="margin-top: 10px;"><strong>说明：</strong>图表展示了波前误差在0-500nm范围内，导星波长(589nm)和观测波长(1550nm)对应的斯特列尔比变化趋势。SR值基于Marechal近似公式计算。</p>
+                    </div>
+                </section>
                 
-                <div class="chart-container">
-                    <canvas id="nmChart"></canvas>
-                </div>
+                <section class="section">
+                    <h2>数据流与计算流程</h2>
+                    <p>本系统采用标准化的数据处理流程，从输入参数到最终结果，确保计算过程的透明性和可重复性。</p>
+                    
+                    <div class="data-flow-diagram">
+                        <div class="data-flow-group">
+                            <div class="data-flow-title">输入参数</div>
+                            <div class="data-flow-item">
+                                <span class="param-name">大气参数</span>
+                                <span class="param-symbol">r<sub>0</sub>, 仰角</span>
+                            </div>
+                            <div class="data-flow-item">
+                                <span class="param-name">望远镜参数</span>
+                                <span class="param-symbol">D, ε</span>
+                            </div>
+                            <div class="data-flow-item">
+                                <span class="param-name">AO系统参数</span>
+                                <span class="param-symbol">N, f<sub>frame</sub></span>
+                            </div>
+                            <div class="data-flow-item">
+                                <span class="param-name">导星参数</span>
+                                <span class="param-symbol">星等, λ<sub>guide</sub></span>
+                            </div>
+                            <div class="data-flow-item">
+                                <span class="param-name">观测参数</span>
+                                <span class="param-symbol">λ<sub>target</sub>, 焦距</span>
+                            </div>
+                        </div>
+                        
+                        <div class="data-flow-group">
+                            <div class="data-flow-title">中间计算</div>
+                            <div class="data-flow-item">
+                                <span class="param-name">大气校正</span>
+                                <span class="param-symbol">r<sub>0,act</sub> = r<sub>0</sub> × cos(z)<sup>3/5</sup></span>
+                            </div>
+                            <div class="data-flow-item">
+                                <span class="param-name">信噪比计算</span>
+                                <span class="param-symbol">SNR = S<sub>M</sub> / √(...)</span>
+                            </div>
+                            <div class="data-flow-item">
+                                <span class="param-name">系统带宽</span>
+                                <span class="param-symbol">f<sub>e3db</sub> = f<sub>frame</sub> / ratio</span>
+                            </div>
+                            <div class="data-flow-item">
+                                <span class="param-name">子孔径直径</span>
+                                <span class="param-symbol">D<sub>sub</sub> = D / √N</span>
+                            </div>
+                        </div>
+
+                        <br>
+
+                        <div class="data-flow-group">
+                            <div class="data-flow-title">误差分量</div>
+                            <div class="data-flow-item">
+                                <span class="param-name">拟合误差</span>
+                                <span class="param-symbol">σ²<sub>fit</sub> = k<sub>fit</sub> × (D/r<sub>0,guide</sub>)<sup>5/3</sup> × N<sup>-5/6</sup></span>
+                            </div>
+                            <div class="data-flow-item">
+                                <span class="param-name">时间误差</span>
+                                <span class="param-symbol">σ²<sub>temp</sub> = (f<sub>G</sub>/f<sub>e3db</sub>)<sup>5/3</sup></span>
+                            </div>
+                            <div class="data-flow-item">
+                                <span class="param-name">噪声误差</span>
+                                <span class="param-symbol">σ²<sub>noise</sub> = 2π² × √[(3/16)² + (s/8)²] / SNR</span>
+                            </div>
+                            <div class="data-flow-item">
+                                <span class="param-name">杂项误差</span>
+                                <span class="param-symbol">σ²<sub>misc</sub> = 输入值</span>
+                            </div>
+                        </div>
+                        
+                        <div class="data-flow-group">
+                            <div class="data-flow-title">最终结果</div>
+                            <div class="data-flow-item">
+                                <span class="param-name">总波前误差</span>
+                                <span class="param-symbol">σ²<sub>total</sub> = Σ误差分量</span>
+                            </div>
+                            <div class="data-flow-item">
+                                <span class="param-name">斯特列尔比</span>
+                                <span class="param-symbol">SR = exp(-σ<sub>total</sub>²)</span>
+                            </div>
+                            <div class="data-flow-item">
+                                <span class="param-name">耦合效率</span>
+                                <span class="param-symbol">η<sub>total</sub> = SR × η<sub>mode</sub> × η<sub>tracking</sub></span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            
+            <!-- 单模耦合效率分析选项卡 -->
+            <div id="coupling" class="tab-content">
+                <section class="section">
+                    <h2>单模耦合效率参数配置</h2>
+                    <p>本选项卡用于分析单模光纤耦合效率。请输入以下参数，系统将基于自适应光学系统的计算结果进行耦合效率分析。</p>
+                    
+                    <div class="param-group">
+                        <div class="param-item">
+                            <label>观测波长 (nm)</label>
+                            <input type="number" id="coupling_wavelength_input" value="1550" step="10" min="1000" max="2000">
+                        </div>
+                        <div class="param-item">
+                            <label>系统等效焦距 (m)</label>
+                            <input type="number" id="coupling_focal_length_input" value="30.0" step="1.0" min="10" max="100">
+                        </div>
+                        <div class="param-item">
+                            <label>光纤模场直径 (μm)</label>
+                            <input type="number" id="coupling_mfd_input" value="10.4" step="0.1" min="5" max="20">
+                        </div>
+                        <div class="param-item">
+                            <label>跟踪误差 (mas)</label>
+                            <input type="number" id="coupling_tracking_error_input" value="5.0" step="0.5" min="0" max="50">
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button id="calculateCouplingBtn">计算耦合效率</button>
+                    </div>
+                </section>
                 
-                <div class="chart-container">
-                    <canvas id="srChart"></canvas>
-                </div>
-            </section>
+                <section class="section">
+                    <h2>耦合效率计算结果</h2>
+                    
+                    <div class="results-grid">
+                        <div class="result-card">
+                            <h3>总耦合效率</h3>
+                            <div class="result-value" id="coupling_total">-</div>
+                            <div class="result-desc">包含所有影响因素</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h3>观测波长SR</h3>
+                            <div class="result-value" id="coupling_sr_target">-</div>
+                            <div class="result-desc" id="coupling_sr_desc">@1550nm波长</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h3>模式匹配效率</h3>
+                            <div class="result-value" id="coupling_mode">-</div>
+                            <div class="result-desc">光纤模式匹配</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h3>跟瞄效率</h3>
+                            <div class="result-value" id="coupling_tracking">-</div>
+                            <div class="result-desc">望远镜跟踪精度</div>
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="section">
+                    <h2>当前配置参数</h2>
+                    
+                    <div class="results-grid">
+                        <div class="result-card">
+                            <h3>观测波长</h3>
+                            <div class="result-value" id="coupling_wavelength">-</div>
+                            <div class="result-desc">目标观测波长</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h3>系统焦距</h3>
+                            <div class="result-value" id="coupling_focal_length">-</div>
+                            <div class="result-desc">等效焦距</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h3>光纤模场直径</h3>
+                            <div class="result-value" id="coupling_mfd">-</div>
+                            <div class="result-desc">MFD (μm)</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h3>跟踪误差</h3>
+                            <div class="result-value" id="coupling_tracking_error">-</div>
+                            <div class="result-desc">RMS (mas)</div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            
+            <!-- 计算公式说明选项卡 -->
+            <div id="formulas" class="tab-content">
+                <section class="section">
+                    <h2>波前误差与单模耦合效率计算公式</h2>
+                    <p>本系统基于自适应光学系统的四分量误差理论，详细展示了从大气参数到最终耦合效率的完整计算过程。</p>
+                </section>
+                
+                <section class="section">
+                    <h2>1. 总波前误差方差计算</h2>
+                    
+                    <div class="formula-card">
+                        <div class="formula-title">总波前误差方差</div>
+                        <div class="formula-expression">
+                            σ²<sub>total</sub> = σ²<sub>fit</sub> + σ²<sub>temp</sub> + σ²<sub>noise</sub> + σ²<sub>misc</sub>
+                        </div>
+                        <div class="formula-explanation">
+                            总波前误差方差由四个主要分量组成：拟合误差、时间误差、噪声误差和杂项误差
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="section">
+                    <h2>2. 误差分量计算公式</h2>
+                    
+                    <div class="formula-group">
+                        <h3>2.1 拟合误差</h3>
+                        <div class="formula-card">
+                            <div class="formula-expression">
+                                σ²<sub>fit</sub> = k<sub>fit</sub> × (D/r<sub>0,guide</sub>)<sup>5/3</sup> × N<sup>-5/6</sup>
+                            </div>
+                            <div class="formula-explanation">
+                                <strong>参数说明：</strong>
+                                <ul>
+                                    <li>k<sub>fit</sub>：拟合误差系数（通常取0.3-0.5）</li>
+                                    <li>D：望远镜口径（m）</li>
+                                    <li>r<sub>0,guide</sub>：导星波长下的大气相干长度（m）</li>
+                                    <li>N：变形镜促动器数量</li>
+                                </ul>
+                                <strong>物理意义：</strong>反映自适应光学系统的空间校正能力
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="formula-group">
+                        <h3>2.2 时间误差</h3>
+                        <div class="formula-card">
+                            <div class="formula-expression">
+                                σ²<sub>temp</sub> = (f<sub>G</sub>/f<sub>e3db</sub>)<sup>5/3</sup>
+                            </div>
+                            <div class="formula-explanation">
+                                <strong>参数说明：</strong>
+                                <ul>
+                                    <li>f<sub>G</sub>：Greenwood频率（Hz），反映大气湍流变化速度</li>
+                                    <li>f<sub>e3db</sub>：系统带宽（Hz），f<sub>e3db</sub> = f<sub>frame</sub>/ratio</li>
+                                </ul>
+                                <strong>物理意义：</strong>反映自适应光学系统的时间校正能力
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="formula-group">
+                        <h3>2.3 噪声误差</h3>
+                        <div class="formula-card">
+                            <div class="formula-expression">
+                                σ²<sub>noise</sub> = 2π² × √[(3/16)² + (s/8)²] / SNR
+                            </div>
+                            <div class="formula-explanation">
+                                <strong>参数说明：</strong>
+                                <ul>
+                                    <li>SNR：信噪比，与导星亮度、探测器性能相关</li>
+                                    <li>s：光源几何因子，对于无穷远恒星 s = 0</li>
+                                    <li>常数项：√[(3/16)² + (s/8)²] = 3/16 （当s=0时）</li>
+                                </ul>
+                                <strong>物理意义：</strong>反映波前传感器的测量精度，包含倾斜噪声和测量噪声
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="section">
+                    <h2>3. 中间变量计算</h2>
+                    
+                    <div class="formula-group">
+                        <h3>3.1 信噪比计算</h3>
+                        <div class="formula-card">
+                            <div class="formula-expression">
+                                SNR = S<sub>M</sub> / √(S<sub>M</sub> + σ<sub>R</sub>² + I<sub>D</sub>t<sub>int</sub>)
+                            </div>
+                            <div class="formula-explanation">
+                                <strong>参数说明：</strong>
+                                <ul>
+                                    <li>S<sub>M</sub>：信号电子数，与导星亮度、积分时间、探测器面积相关</li>
+                                    <li>σ<sub>R</sub>：读出噪声（电子数）</li>
+                                    <li>I<sub>D</sub>：暗电流（电子数/秒）</li>
+                                    <li>t<sub>int</sub>：积分时间（秒）</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="formula-group">
+                        <h3>3.2 大气相干长度修正</h3>
+                        <div class="formula-card">
+                            <div class="formula-expression">
+                                r<sub>0,act</sub> = r<sub>0</sub> × cos(z)<sup>3/5</sup>
+                            </div>
+                            <div class="formula-explanation">
+                                <strong>参数说明：</strong>
+                                <ul>
+                                    <li>r<sub>0</sub>：天顶方向大气相干长度</li>
+                                    <li>z：天顶角，z = 90° - 仰角</li>
+                                </ul>
+                                <strong>物理意义：</strong>考虑大气路径长度对大气相干长度的影响
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="section">
+                    <h2>4. 单模光纤耦合效率计算</h2>
+                    
+                    <div class="formula-group">
+                        <h3>4.1 斯特列尔比计算</h3>
+                        <div class="formula-card">
+                            <div class="formula-expression">
+                                SR = exp(-σ<sub>total</sub>²)
+                            </div>
+                            <div class="formula-explanation">
+                                <strong>参数说明：</strong>
+                                <ul>
+                                    <li>σ<sub>total</sub>：总波前误差（rad）</li>
+                                </ul>
+                                <strong>物理意义：</strong>基于Marechal近似，反映波前质量对成像质量的影响
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="formula-group">
+                        <h3>4.2 波长依赖的斯特列尔比</h3>
+                        <div class="formula-card">
+                            <div class="formula-expression">
+                                SR<sub>target</sub> = exp(-(2π/λ<sub>target</sub>)² × σ<sub>nm</sub>²)
+                            </div>
+                            <div class="formula-explanation">
+                                <strong>参数说明：</strong>
+                                <ul>
+                                    <li>λ<sub>target</sub>：目标波长（1550nm）</li>
+                                    <li>σ<sub>nm</sub>：波前误差（nm）</li>
+                                </ul>
+                                <strong>物理意义：</strong>将波前误差转换为特定波长下的斯特列尔比
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="formula-group">
+                        <h3>4.3 模式匹配效率计算</h3>
+                        <div class="formula-card">
+                            <div class="formula-expression">
+                                η<sub>mode</sub> = exp[-(π × MFD × σ<sub>tilt</sub> / (4λ × f<sub>eff</sub>))²]
+                            </div>
+                            <div class="formula-explanation">
+                                <strong>参数说明：</strong>
+                                <ul>
+                                    <li>MFD：光纤模场直径（m）</li>
+                                    <li>σ<sub>tilt</sub>：倾斜误差（rad），包含跟踪误差</li>
+                                    <li>λ：观测波长（m）</li>
+                                    <li>f<sub>eff</sub>：系统等效焦距（m）</li>
+                                </ul>
+                                <strong>物理意义：</strong>反映光纤模式与望远镜光斑的匹配程度，主要受跟踪精度和焦距影响
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="formula-group">
+                        <h3>4.4 跟瞄效率计算</h3>
+                        <div class="formula-card">
+                            <div class="formula-expression">
+                                η<sub>tracking</sub> = exp[-(2π × θ<sub>track</sub> / λ)²]
+                            </div>
+                            <div class="formula-explanation">
+                                <strong>参数说明：</strong>
+                                <ul>
+                                    <li>θ<sub>track</sub>：跟踪误差角（rad）</li>
+                                    <li>λ：观测波长（m）</li>
+                                </ul>
+                                <strong>物理意义：</strong>反映望远镜跟踪精度对光纤耦合效率的影响，跟踪误差越大，耦合效率越低
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="formula-group">
+                        <h3>4.5 总单模耦合效率</h3>
+                        <div class="formula-card">
+                            <div class="formula-expression">
+                                η<sub>total</sub> = SR<sub>target</sub> × η<sub>mode</sub> × η<sub>tracking</sub>
+                            </div>
+                            <div class="formula-explanation">
+                                <strong>参数说明：</strong>
+                                <ul>
+                                    <li>SR<sub>target</sub>：目标波长下的斯特列尔比</li>
+                                    <li>η<sub>mode</sub>：模式匹配效率，根据计算得出</li>
+                                    <li>η<sub>tracking</sub>：跟瞄效率，根据计算得出</li>
+                                </ul>
+                                <strong>物理意义：</strong>综合考虑波前质量、模式匹配和跟瞄精度对单模耦合效率的影响
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+            </div>
         </div>
     </div>
 
@@ -690,190 +1346,231 @@ flowchart TD
                 this.wavelength_r0_ref = 550e-9; // r0参考波长(m)
             }
             
-            // 计算天顶距（弧度）
             calculateZenithAngle(elevation_deg) {
                 const elevation_rad = elevation_deg * Math.PI / 180;
-                return Math.PI/2 - elevation_rad; // 天顶距 = 90° - 仰角
+                return Math.PI/2 - elevation_rad;
             }
             
-            // 计算仰角调整后的大气相干长度
             calculateR0AtElevation(r0_ref, elevation_deg) {
                 const z = this.calculateZenithAngle(elevation_deg);
-                // r0(z) = r0_zenith * (cos z)^(3/5)
                 return r0_ref * Math.pow(Math.cos(z), 3/5);
             }
             
-            // 计算仰角调整后的大气透过率
             calculateTauAAtElevation(tau_a_zenith, elevation_deg) {
                 const z = this.calculateZenithAngle(elevation_deg);
                 const sec_z = 1 / Math.cos(z);
-                // τ(z) = τ_zenith^(sec z)
                 return Math.pow(tau_a_zenith, sec_z);
             }
             
-            // 计算导星波长处的大气相干长度
             calculateR0AtWavelength(r0_ref, wavelength_target) {
-                // r0 ∝ λ^(6/5) = λ^1.2
                 return r0_ref * Math.pow(wavelength_target / this.wavelength_r0_ref, 1.2);
             }
             
-            // 计算恒星光子流量密度
+            calculateFGuideAtWavelength(f_G, wavelength_guide, wavelength_target) {
+                return f_G * Math.pow(wavelength_guide / wavelength_target, 6/5);
+            }
+            
             calculatePhotonFlux(magnitude) {
-                // φ_s = 4×10^6 × 10^(-m_v/2.5) photons/cm²-s
                 const phi_cm2 = 4e6 * Math.pow(10, -magnitude / 2.5);
-                // 转换为photons/m²-s
                 return phi_cm2 * 1e4;
             }
             
-            // 计算信号电子数
+            calculateSquareSubaperture(D, N) {
+                return D / Math.sqrt(N);
+            }
+            
             calculateSignalElectrons(magnitude, f_frame, N, D, epsilon, eta, tau_a, tau_o, K) {
-                // 光子流量密度
                 const phi_s = this.calculatePhotonFlux(magnitude);
-                
-                // 积分时间
                 const t_int = 1.0 / f_frame;
-                
-                // 子孔径直径
-                const D_sub = D / Math.sqrt(N);
-                
-                // 子孔径面积
-                const A_sub = Math.PI * Math.pow(D_sub / 2, 2);
-                
-                // 有效面积（考虑遮拦）
+                const D_sub = this.calculateSquareSubaperture(D, N);
+                const A_sub = Math.pow(D_sub, 2); // 方形孔径面积
                 const A_effective = A_sub * (1 - Math.pow(epsilon, 2));
-                
-                // 信号电子数
                 return (phi_s * eta * t_int * A_effective * tau_a * tau_o) / K;
             }
             
-            // 计算信噪比
             calculateSNR(magnitude, f_frame, N, D, epsilon, eta, tau_a, tau_o, sigma_R, I_D, K) {
-                // 信号电子数
                 const S_M = this.calculateSignalElectrons(magnitude, f_frame, N, D, epsilon, eta, tau_a, tau_o, K);
-                
-                // 积分时间
                 const t_int = 1.0 / f_frame;
-                
-                // 背景电子数（夜间可忽略）
-                const S_B = 0;
-                
-                // 总噪声方差
-                const noise_variance = S_M + S_B + Math.pow(sigma_R, 2) + t_int * I_D;
-                
-                // 信噪比
+                const noise_variance = S_M + Math.pow(sigma_R, 2) + t_int * I_D;
                 return noise_variance > 0 ? S_M / Math.sqrt(noise_variance) : 0;
             }
             
-            // 计算拟合误差平方
             sigmaFittingSquared(r0_ref, wavelength_guide, D, N, k_fitting) {
                 const r0_guide = this.calculateR0AtWavelength(r0_ref, wavelength_guide);
                 const term = Math.pow(D / r0_guide, 5/3);
                 return k_fitting * term * Math.pow(N, -5/6);
             }
             
-            // 计算时间误差平方
             sigmaTemporalSquared(f_G, f_frame, f_e3db_ratio) {
                 const f_e3db = f_frame / f_e3db_ratio;
                 return Math.pow(f_G / f_e3db, 5/3);
             }
             
-            // 计算噪声误差平方
             sigmaNoiseSquared(magnitude, f_frame, N, D, epsilon, eta, tau_a, tau_o, sigma_R, I_D, K) {
                 const SNR = this.calculateSNR(magnitude, f_frame, N, D, epsilon, eta, tau_a, tau_o, sigma_R, I_D, K);
-                return SNR > 0 ? 1.0 / Math.pow(SNR, 2) : 1e6; // 极大值，表示无法测量
+                if (SNR > 0) {
+                    const s = 0; // 无穷远恒星，s=0
+                    const constant_term = Math.sqrt(Math.pow(3/16, 2) + Math.pow(s/8, 2));
+                    return 2 * Math.pow(Math.PI, 2) * constant_term / SNR;
+                } else {
+                    return 1e6; // 极大值，表示无法测量
+                }
             }
             
-            // 计算总波前残差平方
             totalWavefrontErrorSquared(params) {
-                const {
-                    r0_ref, wavelength_guide, D, N, f_G, f_frame, 
-                    k_fitting, f_e3db_ratio, magnitude, epsilon, elevation,
-                    eta, tau_a, tau_o, sigma_R, I_D, K, sigma_miscel
-                } = params;
+                const r0_ref_m = params.r0_ref / 100;
+                const wavelength_guide_m = params.wavelength_guide * 1e-9;
                 
-                // 转换为米
-                const r0_ref_m = r0_ref / 100; // cm to m
-                const wavelength_guide_m = wavelength_guide * 1e-9; // nm to m
+                const r0_actual = this.calculateR0AtElevation(r0_ref_m, params.elevation);
+                const tau_a_actual = this.calculateTauAAtElevation(params.tau_a, params.elevation);
                 
-                // 根据仰角调整r0和tau_a
-                const r0_actual = this.calculateR0AtElevation(r0_ref_m, elevation);
-                const tau_a_actual = this.calculateTauAAtElevation(tau_a, elevation);
-                
-                const sigma2_fitting = this.sigmaFittingSquared(r0_actual, wavelength_guide_m, D, N, k_fitting);
-                const sigma2_temporal = this.sigmaTemporalSquared(f_G, f_frame, f_e3db_ratio);
+                const sigma2_fitting = this.sigmaFittingSquared(r0_actual, wavelength_guide_m, params.D, params.N, params.k_fitting);
+                const sigma2_temporal = this.sigmaTemporalSquared(params.f_G, params.f_frame, params.f_e3db_ratio);
                 const sigma2_noise = this.sigmaNoiseSquared(
-                    magnitude, f_frame, N, D, epsilon, eta, tau_a_actual, tau_o, sigma_R, I_D, K
+                    params.magnitude, params.f_frame, params.N, params.D, params.epsilon,
+                    params.eta, tau_a_actual, params.tau_o, params.sigma_R, params.I_D, params.K
                 );
                 
-                // 总误差方差
                 return {
-                    total: sigma2_fitting + sigma2_temporal + sigma2_noise + sigma_miscel,
+                    total: sigma2_fitting + sigma2_temporal + sigma2_noise + params.sigma_miscel,
                     fitting: sigma2_fitting,
                     temporal: sigma2_temporal,
                     noise: sigma2_noise,
-                    miscel: sigma_miscel
+                    miscel: params.sigma_miscel
                 };
             }
             
-            // 计算斯特列尔比
             calculateStrehlRatio(sigma_total) {
-                // SR = exp(-σ^2)，其中σ是波前误差RMS (rad)
                 return Math.exp(-Math.pow(sigma_total, 2));
             }
             
-            // 根据斯特列尔比计算波前误差
-            calculateWavefrontErrorFromSR(SR) {
-                // SR = exp(-σ^2) → σ = sqrt(-ln(SR))
-                return SR > 0 ? Math.sqrt(-Math.log(SR)) : Infinity;
+            calculateSRAtWavelength(sigma_total, wavelength_guide, wavelength_target) {
+                // 斯特列尔比公式：SR = exp(-(2π/λ)^2 * σ_nm^2)
+                // σ_nm = σ_total * λ_target / (2π) * 1e9 (转换为nm)
+                const sigma_nm = sigma_total * wavelength_target * 1e9 / (2 * Math.PI);
+                const strehl_ratio = Math.exp(-Math.pow(2 * Math.PI / wavelength_target, 2) * Math.pow(sigma_nm, 2));
+                return strehl_ratio;
             }
             
-            // 获取参数范围
+            // 单模光纤耦合效率计算
+            calculateSingleModeCoupling(sigma_total, coupling_params) {
+                const wavelength_target = coupling_params.wavelength_target * 1e-9; // 观测波长(nm转换为m)
+                const wavelength_guide = 589e-9; // 固定导星波长
+                
+                // 计算观测波长下的斯特列尔比
+                const SR_target = this.calculateSRAtWavelength(sigma_total, wavelength_guide, wavelength_target);
+                
+                // 计算跟瞄效率 (基于跟踪误差)
+                const tracking_error_rad = coupling_params.tracking_error * 1e-3 / 206265; // mas转换为rad
+                const eta_tracking = Math.exp(-Math.pow(2 * Math.PI * tracking_error_rad / wavelength_target, 2));
+                
+                // 计算模式匹配效率 (基于光纤参数和跟踪误差)
+                const MFD_m = coupling_params.mfd * 1e-6; // μm转换为m
+                const focal_length = coupling_params.focal_length;
+                const sigma_tilt = tracking_error_rad; // 使用跟踪误差作为倾斜误差
+                const eta_mode = Math.exp(-Math.pow(Math.PI * MFD_m * sigma_tilt / (4 * wavelength_target * focal_length), 2));
+                
+                // 总耦合效率
+                const eta_total = SR_target * eta_mode * eta_tracking;
+                
+                return {
+                    total: eta_total,
+                    mode_matching: eta_mode,
+                    tracking: eta_tracking,
+                    strehl_ratio: SR_target,
+                    wavelength_target: coupling_params.wavelength_target,
+                    focal_length: coupling_params.focal_length,
+                    mfd: coupling_params.mfd,
+                    tracking_error: coupling_params.tracking_error
+                };
+            }
+            
+            // 单模光纤耦合效率计算（直接使用前面计算的SR值）
+            calculateSingleModeCouplingWithSR(SR_target, coupling_params) {
+                const wavelength_target = coupling_params.wavelength_target * 1e-9; // 观测波长(nm转换为m)
+                
+                // 计算跟瞄效率 (基于跟踪误差)
+                const tracking_error_rad = coupling_params.tracking_error * 1e-3 / 206265; // mas转换为rad
+                const eta_tracking = Math.exp(-Math.pow(2 * Math.PI * tracking_error_rad / wavelength_target, 2));
+                
+                // 计算模式匹配效率 (基于光纤参数和跟踪误差)
+                const MFD_m = coupling_params.mfd * 1e-6; // μm转换为m
+                const focal_length = coupling_params.focal_length;
+                const sigma_tilt = tracking_error_rad; // 使用跟踪误差作为倾斜误差
+                const eta_mode = Math.exp(-Math.pow(Math.PI * MFD_m * sigma_tilt / (4 * wavelength_target * focal_length), 2));
+                
+                // 总耦合效率
+                const eta_total = SR_target * eta_mode * eta_tracking;
+                
+                return {
+                    total: eta_total,
+                    mode_matching: eta_mode,
+                    tracking: eta_tracking,
+                    strehl_ratio: SR_target,
+                    wavelength_target: coupling_params.wavelength_target,
+                    focal_length: coupling_params.focal_length,
+                    mfd: coupling_params.mfd,
+                    tracking_error: coupling_params.tracking_error
+                };
+            }
+            
+            // 获取耦合效率输入参数
+            getCouplingInputParams() {
+                return {
+                    wavelength_target: parseFloat(document.getElementById('coupling_wavelength_input').value),
+                    focal_length: parseFloat(document.getElementById('coupling_focal_length_input').value),
+                    mfd: parseFloat(document.getElementById('coupling_mfd_input').value),
+                    tracking_error: parseFloat(document.getElementById('coupling_tracking_error_input').value)
+                };
+            }
+            
             getParameterRange(paramName) {
                 const ranges = {
                     'r0_ref': { min: 5, max: 20, step: 1 },
                     'N': { min: 100, max: 800, step: 50 },
                     'f_frame': { min: 500, max: 2000, step: 100 },
                     'f_G': { min: 20, max: 200, step: 10 },
-                    'magnitude': { min: 5, max: 15, step: 1 },
+                    'magnitude': { min: 5, max: 15, step: 0.5 },
                     'elevation': { min: 30, max: 90, step: 5 }
                 };
                 return ranges[paramName] || { min: 0, max: 100, step: 10 };
             }
+            
+            // 获取所有分析参数的范围配置
+            getAllParameterRanges() {
+                return {
+                    'r0_ref': { min: 5, max: 20, step: 1 },
+                    'N': { min: 100, max: 800, step: 50 },
+                    'f_frame': { min: 500, max: 2000, step: 100 },
+                    'f_G': { min: 20, max: 200, step: 10 },
+                    'magnitude': { min: 5, max: 15, step: 0.5 },
+                    'elevation': { min: 30, max: 90, step: 5 }
+                };
+            }
         }
-        
+
         // 全局变量
         let analyzer = new WavefrontErrorAnalysis();
         let errorChart = null;
         let nmChart = null;
         let srChart = null;
-        
-        // 获取DOM元素
-        const calculateBtn = document.getElementById('calculateBtn');
-        const resetBtn = document.getElementById('resetBtn');
-        const updateChartBtn = document.getElementById('updateChartBtn');
-        const saveParamsBtn = document.getElementById('saveParamsBtn');
-        const loadParamsBtn = document.getElementById('loadParamsBtn');
-        const fileInput = document.getElementById('fileInput');
-        const toggleFormulasBtn = document.getElementById('toggleFormulasBtn');
-        const formulasContent = document.getElementById('formulasContent');
-        
-        const totalErrorEl = document.getElementById('total_error');
-        const nmErrorEl = document.getElementById('nm_error');
-        const srValueEl = document.getElementById('sr_value');
-        const targetEvalEl = document.getElementById('target_eval');
-        const intermediateVarsEl = document.getElementById('intermediate_vars');
-        
-        // 误差分量元素
-        const fittingPercentEl = document.getElementById('fitting_percent');
-        const temporalPercentEl = document.getElementById('temporal_percent');
-        const noisePercentEl = document.getElementById('noise_percent');
-        const miscPercentEl = document.getElementById('misc_percent');
-        
-        const fittingVarianceEl = document.getElementById('fitting_variance');
-        const temporalVarianceEl = document.getElementById('temporal_variance');
-        const noiseVarianceEl = document.getElementById('noise_variance');
-        const miscVarianceEl = document.getElementById('misc_variance');
-        
+        let couplingChart = null;
+        let couplingComponentsChart = null;
+        let currentParams = {};
+
+        // 选项卡切换
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabId = btn.getAttribute('data-tab');
+                
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                btn.classList.add('active');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+
         // 获取输入参数
         function getInputParams() {
             return {
@@ -894,10 +1591,41 @@ flowchart TD
                 tau_o: parseFloat(document.getElementById('tau_o').value),
                 sigma_R: parseFloat(document.getElementById('sigma_R').value),
                 I_D: parseFloat(document.getElementById('I_D').value),
-                K: parseFloat(document.getElementById('K').value)
+                K: parseFloat(document.getElementById('K').value),
+                wavelength_target: parseFloat(document.getElementById('wavelength_target').value),
+                focal_length: parseFloat(document.getElementById('focal_length').value),
+                mfd: parseFloat(document.getElementById('mfd').value),
+                tracking_error: parseFloat(document.getElementById('tracking_error').value),
+                eta_mode: parseFloat(document.getElementById('eta_mode').value),
+                eta_tracking: parseFloat(document.getElementById('eta_tracking').value)
             };
         }
-        
+
+        // 获取分析参数范围设置
+        function getAnalysisRanges() {
+            // 获取当前界面的范围值
+            const currentMin = parseFloat(document.getElementById('paramMin').value);
+            const currentMax = parseFloat(document.getElementById('paramMax').value);
+            const currentStep = parseFloat(document.getElementById('paramStep').value);
+            
+            // 获取所有参数的默认范围
+            const defaultRanges = analyzer.getAllParameterRanges();
+            
+            // 返回包含当前界面值的分析参数范围
+            return {
+                'r0_ref': {
+                    min: currentMin,
+                    max: currentMax,
+                    step: currentStep
+                },
+                'N': defaultRanges.N,
+                'f_frame': defaultRanges.f_frame,
+                'f_G': defaultRanges.f_G,
+                'magnitude': defaultRanges.magnitude,
+                'elevation': defaultRanges.elevation
+            };
+        }
+
         // 设置输入参数
         function setInputParams(params) {
             for (const key in params) {
@@ -907,156 +1635,110 @@ flowchart TD
                 }
             }
         }
-        
-        // 保存参数到文件
-        function saveParameters() {
-            const params = getInputParams();
-            const dataStr = JSON.stringify(params, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+
+        // 更新参数范围
+        function updateParameterRange() {
+            const paramName = document.getElementById('paramSelect').value;
+            let range;
             
-            const url = URL.createObjectURL(dataBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'wavefront_analysis_params.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-        
-        // 从文件载入参数
-        function loadParameters(file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const params = JSON.parse(e.target.result);
-                    setInputParams(params);
-                    calculateAndDisplay();
-                } catch (error) {
-                    alert('文件格式错误，无法载入参数');
-                }
-            };
-            reader.readAsText(file);
-        }
-        
-        // 重置参数为默认值
-        function resetParameters() {
-            const defaultParams = {
-                r0_ref: 10,
-                wavelength_guide: 589,
-                D: 2.0,
-                epsilon: 0.18,
-                magnitude: 8.0,
-                N: 400,
-                f_frame: 1000,
-                f_G: 50,
-                elevation: 60,
-                k_fitting: 0.3,
-                f_e3db_ratio: 25,
-                sigma_miscel: 0.05,
-                eta: 0.9,
-                tau_a: 0.9,
-                tau_o: 0.8,
-                sigma_R: 0.3,
-                I_D: 0.01,
-                K: 9
-            };
+            // 如果存在已载入的分析参数范围，优先使用保存的值
+            if (window.analysisRanges && window.analysisRanges[paramName]) {
+                range = window.analysisRanges[paramName];
+            } else {
+                // 否则使用默认范围
+                range = analyzer.getParameterRange(paramName);
+            }
             
-            setInputParams(defaultParams);
-            calculateAndDisplay();
+            document.getElementById('paramMin').value = range.min;
+            document.getElementById('paramMax').value = range.max;
+            document.getElementById('paramStep').value = range.step;
         }
-        
+
         // 计算并显示结果
         function calculateAndDisplay() {
             const params = getInputParams();
+            currentParams = params;
             
-            // 计算总误差
             const errorSquared = analyzer.totalWavefrontErrorSquared(params);
             const totalError = Math.sqrt(errorSquared.total);
-            
-            // 计算等效纳米误差 (@1550nm)
             const nmError = totalError * 1550e-9 * 1e9 / (2 * Math.PI);
-            
-            // 计算斯特列尔比
             const SR = analyzer.calculateStrehlRatio(totalError);
+            const targetEval = nmError <= 387.5;
             
-            // 计算天顶距
-            const zenithAngle = analyzer.calculateZenithAngle(params.elevation);
-            const zenithDistanceDeg = zenithAngle * 180 / Math.PI;
+            // 计算单模耦合效率，直接使用前面计算的SR值
+            const couplingParams = analyzer.getCouplingInputParams();
+            const couplingResult = analyzer.calculateSingleModeCouplingWithSR(SR, couplingParams);
+
+            // 更新结果显示
+            document.getElementById('total_error').textContent = totalError.toFixed(4);
+            document.getElementById('nm_error').textContent = nmError.toFixed(1);
+            document.getElementById('sr_value').textContent = (SR * 100).toFixed(1) + '%';
+            document.getElementById('target_eval').textContent = targetEval ? '达标' : '未达标';
+            document.getElementById('target_eval').style.color = targetEval ? "#4caf50" : "#f44336";
             
-            // 计算调整后的r0和tau_a
-            const r0_ref_m = params.r0_ref / 100; // cm to m
+            // 更新耦合效率分析结果
+            updateCouplingResults(couplingResult);
+
+            // 更新误差分量
+            const fittingError = Math.sqrt(errorSquared.fitting);
+            const temporalError = Math.sqrt(errorSquared.temporal);
+            const noiseError = Math.sqrt(errorSquared.noise);
+            const miscError = Math.sqrt(errorSquared.miscel);
+
+            document.getElementById('fitting_error').textContent = fittingError.toFixed(4);
+            document.getElementById('temporal_error').textContent = temporalError.toFixed(4);
+            document.getElementById('noise_error').textContent = noiseError.toFixed(4);
+            document.getElementById('misc_error').textContent = miscError.toFixed(4);
+
+            document.getElementById('fitting_variance').textContent = errorSquared.fitting.toFixed(4);
+            document.getElementById('temporal_variance').textContent = errorSquared.temporal.toFixed(4);
+            document.getElementById('noise_variance').textContent = errorSquared.noise.toFixed(4);
+            document.getElementById('misc_variance').textContent = errorSquared.miscel.toFixed(4);
+
+
+
+            // 更新中间变量
+            const r0_ref_m = params.r0_ref / 100;
+            const wavelength_guide_m = params.wavelength_guide * 1e-9;
             const r0_actual = analyzer.calculateR0AtElevation(r0_ref_m, params.elevation);
             const tau_a_actual = analyzer.calculateTauAAtElevation(params.tau_a, params.elevation);
-            
-            // 计算信噪比
-            const wavelength_guide_m = params.wavelength_guide * 1e-9; // nm to m
+            const photon_flux = analyzer.calculatePhotonFlux(params.magnitude);
+            const signal_electrons = analyzer.calculateSignalElectrons(
+                params.magnitude, params.f_frame, params.N, params.D, params.epsilon,
+                params.eta, tau_a_actual, params.tau_o, params.K
+            );
             const SNR = analyzer.calculateSNR(
                 params.magnitude, params.f_frame, params.N, params.D, params.epsilon,
                 params.eta, tau_a_actual, params.tau_o, params.sigma_R, params.I_D, params.K
-            );
-            
-            // 计算中间变量
-            const photonFlux = analyzer.calculatePhotonFlux(params.magnitude);
-            const signalElectrons = analyzer.calculateSignalElectrons(
-                params.magnitude, params.f_frame, params.N, params.D, params.epsilon,
-                params.eta, tau_a_actual, params.tau_o, params.K
             );
             const r0_guide = analyzer.calculateR0AtWavelength(r0_actual, wavelength_guide_m);
             const D_sub = params.D / Math.sqrt(params.N);
             const A_sub = Math.PI * Math.pow(D_sub / 2, 2);
             const A_effective = A_sub * (1 - Math.pow(params.epsilon, 2));
             const f_e3db = params.f_frame / params.f_e3db_ratio;
-            
-            // 计算误差分量占比
-            const totalVariance = errorSquared.total;
-            const fittingPercent = (errorSquared.fitting / totalVariance * 100).toFixed(1);
-            const temporalPercent = (errorSquared.temporal / totalVariance * 100).toFixed(1);
-            const noisePercent = (errorSquared.noise / totalVariance * 100).toFixed(1);
-            const miscPercent = (errorSquared.miscel / totalVariance * 100).toFixed(1);
-            
-            // 目标评估 (λ/4@1550nm = 387.5nm)
-            const targetEval = nmError <= 387.5;
-            
-            // 显示结果
-            totalErrorEl.textContent = totalError.toFixed(4);
-            nmErrorEl.textContent = nmError.toFixed(1);
-            srValueEl.textContent = (SR * 100).toFixed(1) + '%';
-            targetEvalEl.textContent = targetEval ? '达标' : '未达标';
-            targetEvalEl.style.color = targetEval ? "#4caf50" : "#f44336";
-            
-            // 显示误差分量
-            fittingPercentEl.textContent = fittingPercent + '%';
-            temporalPercentEl.textContent = temporalPercent + '%';
-            noisePercentEl.textContent = noisePercent + '%';
-            miscPercentEl.textContent = miscPercent + '%';
-            
-            fittingVarianceEl.textContent = errorSquared.fitting.toFixed(4);
-            temporalVarianceEl.textContent = errorSquared.temporal.toFixed(4);
-            noiseVarianceEl.textContent = errorSquared.noise.toFixed(4);
-            miscVarianceEl.textContent = errorSquared.miscel.toFixed(4);
-            
-            // 显示中间变量
-            intermediateVarsEl.innerHTML = `
+            const zenith_angle = analyzer.calculateZenithAngle(params.elevation);
+            const zenith_distance_deg = zenith_angle * 180 / Math.PI;
+
+            document.getElementById('intermediate_vars').innerHTML = `
                 <div class="var-item">
                     <span class="var-name">天顶距 (度):</span>
-                    <span class="var-value">${zenithDistanceDeg.toFixed(1)}°</span>
+                    <span class="var-value">${zenith_distance_deg.toFixed(1)}°</span>
                 </div>
                 <div class="var-item">
-                    <span class="var-name">实际r0 (m):</span>
+                    <span class="var-name">斜层r0 (m):</span>
                     <span class="var-value">${r0_actual.toFixed(4)}</span>
                 </div>
                 <div class="var-item">
-                    <span class="var-name">实际大气透过率:</span>
+                    <span class="var-name">斜层大气透过率:</span>
                     <span class="var-value">${tau_a_actual.toFixed(3)}</span>
                 </div>
                 <div class="var-item">
                     <span class="var-name">光子流量密度 (photons/m²-s):</span>
-                    <span class="var-value">${photonFlux.toExponential(2)}</span>
+                    <span class="var-value">${photon_flux.toExponential(2)}</span>
                 </div>
                 <div class="var-item">
                     <span class="var-name">信号电子数 (e-):</span>
-                    <span class="var-value">${signalElectrons.toFixed(2)}</span>
+                    <span class="var-value">${signal_electrons.toFixed(2)}</span>
                 </div>
                 <div class="var-item">
                     <span class="var-name">信噪比 SNR:</span>
@@ -1067,78 +1749,78 @@ flowchart TD
                     <span class="var-value">${r0_guide.toFixed(4)}</span>
                 </div>
                 <div class="var-item">
-                    <span class="var-name">子孔径直径 (m):</span>
+                    <span class="var-name">子孔径边长 (m):</span>
                     <span class="var-value">${D_sub.toFixed(3)}</span>
                 </div>
                 <div class="var-item">
-                    <span class="var-name">子孔径面积 (m²):</span>
-                    <span class="var-value">${A_sub.toFixed(4)}</span>
-                </div>
-                <div class="var-item">
-                    <span class="var-name">有效面积 (m²):</span>
-                    <span class="var-value">${A_effective.toFixed(4)}</span>
-                </div>
-                <div class="var-item">
-                    <span class="var-name">系统带宽 (Hz):</span>
+                    <span class="var-name">系统带宽 f<sub>e3db</sub> (Hz):</span>
                     <span class="var-value">${f_e3db.toFixed(1)}</span>
                 </div>
             `;
-            
-            // 更新图表
+
+            // 更新数据流图
+            updateDataFlow(params, errorSquared, totalError, nmError, SR, r0_actual, r0_guide, D_sub, SNR, f_e3db, photon_flux);
+
             updateParameterChart();
         }
-        
-        // 更新参数变化图表
+
+        // 更新数据流图
+        function updateDataFlow(params, errorSquared, totalError, nmError, SR, r0_actual, r0_guide, D_sub, SNR, f_e3db, photon_flux) {
+            // 数据流图中的元素可能不存在，只更新存在的元素
+            const elements = {
+                'flow_r0': params.r0_ref + ' cm',
+                'flow_wavelength': params.wavelength_guide + ' nm',
+                'flow_D': params.D + ' m',
+                'flow_N': params.N,
+                'flow_magnitude': params.magnitude,
+                'flow_fG': params.f_G + ' Hz',
+                'flow_r0_act': r0_actual.toFixed(4) + ' m',
+                'flow_r0_guide': r0_guide.toFixed(4) + ' m',
+                'flow_D_sub': D_sub.toFixed(3) + ' m',
+                'flow_SNR': SNR.toFixed(2),
+                'flow_fe3db': f_e3db.toFixed(1) + ' Hz',
+                'flow_photon_flux': photon_flux.toExponential(2) + ' ph/m²-s',
+                'flow_sigma2_fit': errorSquared.fitting.toFixed(4),
+                'flow_sigma2_temp': errorSquared.temporal.toFixed(4),
+                'flow_sigma2_noise': errorSquared.noise.toFixed(4),
+                'flow_sigma2_misc': errorSquared.miscel.toFixed(4),
+                'flow_sigma2_total': errorSquared.total.toFixed(4),
+                'flow_sigma_rms': totalError.toFixed(4) + ' rad',
+                'flow_sigma_nm': nmError.toFixed(1) + ' nm',
+                'flow_SR': (SR * 100).toFixed(1) + '%',
+                'flow_coupling': (SR * 100).toFixed(1) + '%'
+            };
+            
+            // 只更新存在的元素
+            for (const [id, value] of Object.entries(elements)) {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = value;
+                }
+            }
+        }
+
+        // 更新参数分析图表
         function updateParameterChart() {
             const paramName = document.getElementById('paramSelect').value;
             const minVal = parseFloat(document.getElementById('paramMin').value);
             const maxVal = parseFloat(document.getElementById('paramMax').value);
-            const points = parseInt(document.getElementById('paramPoints').value);
+            const stepVal = parseFloat(document.getElementById('paramStep').value);
             
             const baseParams = getInputParams();
             
             // 生成参数值序列
             let paramValues = [];
-            let step = (maxVal - minVal) / (points - 1);
-            
-            // 生成更整的数值序列
-            for (let i = 0; i < points; i++) {
-                let currentVal = minVal + i * step;
-                
-                // 根据参数类型进行数值优化
-                switch(paramName) {
-                    case 'r0_ref':
-                        currentVal = Math.round(currentVal * 2) / 2; // 步长0.5
-                        break;
-                    case 'N':
-                        currentVal = Math.round(currentVal / 10) * 10; // 10的倍数
-                        break;
-                    case 'f_frame':
-                        currentVal = Math.round(currentVal / 50) * 50; // 50的倍数
-                        break;
-                    case 'f_G':
-                        currentVal = Math.round(currentVal / 5) * 5; // 5的倍数
-                        break;
-                    case 'magnitude':
-                        currentVal = Math.round(currentVal * 2) / 2; // 步长0.5
-                        break;
-                    case 'elevation':
-                        currentVal = Math.round(currentVal); // 整数
-                        break;
-                }
-                
-                paramValues.push(currentVal);
+            for (let val = minVal; val <= maxVal; val += stepVal) {
+                paramValues.push(val);
             }
             
-            // 去重并排序
-            paramValues = [...new Set(paramValues)].sort((a, b) => a - b);
-            
-            const fittingErrors = [];
-            const temporalErrors = [];
-            const noiseErrors = [];
             const totalErrors = [];
             const nmErrors = [];
             const srValues = [];
+            const fittingErrors = [];
+            const temporalErrors = [];
+            const noiseErrors = [];
             
             for (let i = 0; i < paramValues.length; i++) {
                 const currentVal = paramValues[i];
@@ -1150,12 +1832,12 @@ flowchart TD
                 const nmError = totalError * 1550e-9 * 1e9 / (2 * Math.PI);
                 const SR = analyzer.calculateStrehlRatio(totalError);
                 
+                totalErrors.push(totalError);
+                nmErrors.push(nmError);
+                srValues.push(SR * 100);
                 fittingErrors.push(Math.sqrt(errorSquared.fitting));
                 temporalErrors.push(Math.sqrt(errorSquared.temporal));
                 noiseErrors.push(Math.sqrt(errorSquared.noise));
-                totalErrors.push(totalError);
-                nmErrors.push(nmError);
-                srValues.push(SR * 100); // 转换为百分比
             }
             
             // 获取参数显示名称
@@ -1169,7 +1851,7 @@ flowchart TD
             };
             
             // 更新波前误差图表
-            updateErrorChart(paramName, paramValues, paramLabels, fittingErrors, temporalErrors, noiseErrors, totalErrors);
+            updateErrorChart(paramName, paramValues, paramLabels, totalErrors, fittingErrors, temporalErrors, noiseErrors);
             
             // 更新纳米误差图表
             updateNmChart(paramName, paramValues, paramLabels, nmErrors);
@@ -1177,12 +1859,11 @@ flowchart TD
             // 更新斯特列尔比图表
             updateSRChart(paramName, paramValues, paramLabels, srValues);
         }
-        
+
         // 更新波前误差图表
-        function updateErrorChart(paramName, paramValues, paramLabels, fittingErrors, temporalErrors, noiseErrors, totalErrors) {
+        function updateErrorChart(paramName, paramValues, paramLabels, totalErrors, fittingErrors, temporalErrors, noiseErrors) {
             const ctx = document.getElementById('errorChart').getContext('2d');
             
-            // 如果图表已存在，先销毁
             if (errorChart) {
                 errorChart.destroy();
             }
@@ -1192,6 +1873,15 @@ flowchart TD
                 data: {
                     labels: paramValues,
                     datasets: [
+                        {
+                            label: '总误差',
+                            data: totalErrors,
+                            borderColor: 'rgb(201, 203, 207)',
+                            backgroundColor: 'rgba(201, 203, 207, 0.1)',
+                            tension: 0.4,
+                            fill: false,
+                            borderDash: [5, 5]
+                        },
                         {
                             label: '拟合误差',
                             data: fittingErrors,
@@ -1215,15 +1905,6 @@ flowchart TD
                             backgroundColor: 'rgba(75, 192, 192, 0.1)',
                             tension: 0.4,
                             fill: false
-                        },
-                        {
-                            label: '总误差',
-                            data: totalErrors,
-                            borderColor: 'rgb(201, 203, 207)',
-                            backgroundColor: 'rgba(201, 203, 207, 0.1)',
-                            tension: 0.4,
-                            fill: false,
-                            borderDash: [5, 5]
                         }
                     ]
                 },
@@ -1277,12 +1958,11 @@ flowchart TD
                 }
             });
         }
-        
+
         // 更新纳米误差图表
         function updateNmChart(paramName, paramValues, paramLabels, nmErrors) {
             const ctx = document.getElementById('nmChart').getContext('2d');
             
-            // 如果图表已存在，先销毁
             if (nmChart) {
                 nmChart.destroy();
             }
@@ -1351,12 +2031,11 @@ flowchart TD
                 }
             });
         }
-        
+
         // 更新斯特列尔比图表
         function updateSRChart(paramName, paramValues, paramLabels, srValues) {
             const ctx = document.getElementById('srChart').getContext('2d');
             
-            // 如果图表已存在，先销毁
             if (srChart) {
                 srChart.destroy();
             }
@@ -1425,39 +2104,644 @@ flowchart TD
                 }
             });
         }
-        
-        // 切换公式显示
-        function toggleFormulas() {
-            formulasContent.classList.toggle('expanded');
-            toggleFormulasBtn.textContent = formulasContent.classList.contains('expanded') ? 
-                '隐藏计算公式' : '显示计算公式';
+
+        // 保存参数配置
+        function saveParameters() {
+            const params = getInputParams();
+            const analysisRanges = getAnalysisRanges();
+            
+            // 包含6项分析参数的范围配置
+            const saveData = {
+                params: params,
+                analysisRanges: analysisRanges
+            };
+            
+            const dataStr = JSON.stringify(saveData, null, 2);
+            const blob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'wavefront_params.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
-        
+
+        // 载入参数配置
+        function loadParameters(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    setInputParams(data.params);
+                    
+                    // 恢复分析参数范围
+                    if (data.analysisRanges) {
+                        // 设置当前选中的参数范围
+                        const currentParam = document.getElementById('paramSelect').value;
+                        if (data.analysisRanges[currentParam]) {
+                            document.getElementById('paramMin').value = data.analysisRanges[currentParam].min;
+                            document.getElementById('paramMax').value = data.analysisRanges[currentParam].max;
+                            document.getElementById('paramStep').value = data.analysisRanges[currentParam].step;
+                        }
+                        
+                        // 保存分析参数范围到全局变量，用于参数切换时恢复
+                        window.analysisRanges = data.analysisRanges;
+                    }
+                    
+                    calculateAndDisplay();
+                } catch (error) {
+                    alert('文件格式错误，无法载入参数');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // 重置参数为默认值
+        function resetParameters() {
+            const defaultParams = {
+                r0_ref: 10,
+                wavelength_guide: 589,
+                D: 2.0,
+                epsilon: 0.18,
+                magnitude: 8.0,
+                N: 400,
+                f_frame: 1000,
+                f_G: 50,
+                elevation: 60,
+                k_fitting: 0.3,
+                f_e3db_ratio: 25,
+                sigma_miscel: 0.05,
+                eta: 0.9,
+                tau_a: 0.9,
+                tau_o: 0.8,
+                sigma_R: 0.3,
+                I_D: 0.01,
+                K: 9
+            };
+            
+            setInputParams(defaultParams);
+            
+            // 重置分析参数范围为默认值
+            window.analysisRanges = analyzer.getAllParameterRanges();
+            updateParameterRange();
+            
+            calculateAndDisplay();
+        }
+
         // 事件监听
-        calculateBtn.addEventListener('click', calculateAndDisplay);
-        resetBtn.addEventListener('click', resetParameters);
-        updateChartBtn.addEventListener('click', updateParameterChart);
-        saveParamsBtn.addEventListener('click', saveParameters);
-        loadParamsBtn.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => {
+        document.getElementById('calculateBtn').addEventListener('click', calculateAndDisplay);
+        document.getElementById('updateChartBtn').addEventListener('click', updateParameterChart);
+        document.getElementById('saveParamsBtn').addEventListener('click', saveParameters);
+        document.getElementById('loadParamsBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+        document.getElementById('resetBtn').addEventListener('click', resetParameters);
+        document.getElementById('fileInput').addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 loadParameters(e.target.files[0]);
             }
         });
-        toggleFormulasBtn.addEventListener('click', toggleFormulas);
+        document.getElementById('paramSelect').addEventListener('change', updateParameterRange);
+        document.getElementById('calculateCouplingBtn').addEventListener('click', calculateCouplingEfficiency);
+
+        // 单独计算耦合效率
+        function calculateCouplingEfficiency() {
+            // 使用主选项卡计算的总波前误差
+            if (!currentParams || Object.keys(currentParams).length === 0) {
+                alert('请先在"参数配置与分析"选项卡中计算波前误差');
+                return;
+            }
+            
+            const errorSquared = analyzer.totalWavefrontErrorSquared(currentParams);
+            const totalError = Math.sqrt(errorSquared.total);
+            const SR = analyzer.calculateStrehlRatio(totalError);
+            
+            // 获取用户输入的耦合参数
+            const couplingParams = analyzer.getCouplingInputParams();
+            
+            // 计算耦合效率，直接使用前面计算的SR值
+            const couplingResult = analyzer.calculateSingleModeCouplingWithSR(SR, couplingParams);
+            
+            // 更新显示
+            updateCouplingResults(couplingResult);
+        }
         
+        // 更新耦合效率分析结果
+        function updateCouplingResults(couplingResult) {
+            document.getElementById('coupling_total').textContent = (couplingResult.total * 100).toFixed(1) + '%';
+            document.getElementById('coupling_mode').textContent = (couplingResult.mode_matching * 100).toFixed(1) + '%';
+            document.getElementById('coupling_tracking').textContent = (couplingResult.tracking * 100).toFixed(1) + '%';
+            document.getElementById('coupling_sr_target').textContent = (couplingResult.strehl_ratio * 100).toFixed(1) + '%';
+            document.getElementById('coupling_sr_desc').textContent = '@' + couplingResult.wavelength_target + 'nm波长';
+            
+            // 更新系统配置参数显示
+            document.getElementById('coupling_wavelength').textContent = couplingResult.wavelength_target + ' nm';
+            document.getElementById('coupling_focal_length').textContent = couplingResult.focal_length + ' m';
+            document.getElementById('coupling_mfd').textContent = couplingResult.mfd + ' μm';
+            document.getElementById('coupling_tracking_error').textContent = couplingResult.tracking_error + ' mas';
+        }
+
+        // 更新耦合效率分析图表
+        function updateCouplingChart() {
+            const paramName = document.getElementById('couplingParamSelect').value;
+            const minVal = parseFloat(document.getElementById('couplingParamMin').value);
+            const maxVal = parseFloat(document.getElementById('couplingParamMax').value);
+            const stepVal = parseFloat(document.getElementById('couplingParamStep').value);
+            
+            const baseParams = getInputParams();
+            
+            // 生成参数值序列
+            let paramValues = [];
+            for (let val = minVal; val <= maxVal; val += stepVal) {
+                paramValues.push(val);
+            }
+            
+            const totalCoupling = [];
+            const modeMatching = [];
+            const tracking = [];
+            const strehlRatio = [];
+            
+            for (let i = 0; i < paramValues.length; i++) {
+                const currentVal = paramValues[i];
+                const testParams = {...baseParams};
+                testParams[paramName] = currentVal;
+                
+                const errorSquared = analyzer.totalWavefrontErrorSquared(testParams);
+                const totalError = Math.sqrt(errorSquared.total);
+                const couplingResult = analyzer.calculateSingleModeCoupling(testParams, totalError);
+                
+                totalCoupling.push(couplingResult.total * 100);
+                modeMatching.push(couplingResult.mode_matching * 100);
+                tracking.push(couplingResult.tracking * 100);
+                strehlRatio.push(couplingResult.strehl_ratio * 100);
+            }
+            
+            // 获取参数显示名称
+            const paramLabels = {
+                'r0_ref': 'r0 (cm)',
+                'N': 'DM单元数',
+                'f_frame': '帧频 (Hz)',
+                'f_G': 'Greenwood频率 (Hz)',
+                'magnitude': '导星星等',
+                'elevation': '仰角 (度)'
+            };
+            
+            // 更新耦合效率图表
+            updateCouplingChartVisual(paramName, paramValues, paramLabels, totalCoupling, modeMatching, tracking, strehlRatio);
+            
+            // 更新耦合效率分量图表
+            updateCouplingComponentsChart(paramName, paramValues, paramLabels, totalCoupling, modeMatching, tracking, strehlRatio);
+        }
+
+        // 更新耦合效率图表
+        function updateCouplingChartVisual(paramName, paramValues, paramLabels, totalCoupling, modeMatching, tracking, strehlRatio) {
+            const ctx = document.getElementById('couplingChart').getContext('2d');
+            
+            if (couplingChart) {
+                couplingChart.destroy();
+            }
+            
+            couplingChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: paramValues,
+                    datasets: [
+                        {
+                            label: '总耦合效率',
+                            data: totalCoupling,
+                            borderColor: 'rgb(76, 175, 80)',
+                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                            tension: 0.4,
+                            fill: false,
+                            borderWidth: 3
+                        },
+                        {
+                            label: '模式匹配效率',
+                            data: modeMatching,
+                            borderColor: 'rgb(33, 150, 243)',
+                            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                            tension: 0.4,
+                            fill: false
+                        },
+                        {
+                            label: '跟瞄效率',
+                            data: tracking,
+                            borderColor: 'rgb(255, 152, 0)',
+                            backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                            tension: 0.4,
+                            fill: false
+                        },
+                        {
+                            label: '斯特列尔比',
+                            data: strehlRatio,
+                            borderColor: 'rgb(156, 39, 176)',
+                            backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                            tension: 0.4,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `耦合效率随${paramLabels[paramName]}变化`,
+                            color: '#e0e0e0',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        legend: {
+                            labels: {
+                                color: '#e0e0e0'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: paramLabels[paramName],
+                                color: '#e0e0e0'
+                            },
+                            ticks: {
+                                color: '#b0b0b0'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '效率 (%)',
+                                color: '#e0e0e0'
+                            },
+                            ticks: {
+                                color: '#b0b0b0'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 更新耦合效率分量图表
+        function updateCouplingComponentsChart(paramName, paramValues, paramLabels, totalCoupling, modeMatching, tracking, strehlRatio) {
+            const ctx = document.getElementById('couplingComponentsChart').getContext('2d');
+            
+            if (couplingComponentsChart) {
+                couplingComponentsChart.destroy();
+            }
+            
+            couplingComponentsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: paramValues,
+                    datasets: [
+                        {
+                            label: '模式匹配效率',
+                            data: modeMatching,
+                            backgroundColor: 'rgba(33, 150, 243, 0.7)',
+                            borderColor: 'rgb(33, 150, 243)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: '跟瞄效率',
+                            data: tracking,
+                            backgroundColor: 'rgba(255, 152, 0, 0.7)',
+                            borderColor: 'rgb(255, 152, 0)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: '其他因素',
+                            data: totalCoupling.map((total, index) => {
+                                return Math.max(0, total - modeMatching[index] - tracking[index]);
+                            }),
+                            backgroundColor: 'rgba(156, 39, 176, 0.7)',
+                            borderColor: 'rgb(156, 39, 176)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `耦合效率分量分析 - ${paramLabels[paramName]}`,
+                            color: '#e0e0e0',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        legend: {
+                            labels: {
+                                color: '#e0e0e0'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: paramLabels[paramName],
+                                color: '#e0e0e0'
+                            },
+                            ticks: {
+                                color: '#b0b0b0'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: '效率分量 (%)',
+                                color: '#e0e0e0'
+                            },
+                            ticks: {
+                                color: '#b0b0b0'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 更新耦合效率参数范围
+        function updateCouplingParameterRange() {
+            const paramName = document.getElementById('couplingParamSelect').value;
+            let range;
+            
+            // 如果存在已载入的分析参数范围，优先使用保存的值
+            if (window.analysisRanges && window.analysisRanges[paramName]) {
+                range = window.analysisRanges[paramName];
+            } else {
+                // 否则使用默认范围
+                range = analyzer.getParameterRange(paramName);
+            }
+            
+            document.getElementById('couplingParamMin').value = range.min;
+            document.getElementById('couplingParamMax').value = range.max;
+            document.getElementById('couplingParamStep').value = range.step;
+        }
+
+        // 生成固定范围的波前残差与斯特列尔比关系图表
+        function createWavefrontSRChart() {
+            const canvas = document.getElementById('wavefrontSRChart');
+            if (!canvas) {
+                console.log('wavefrontSRChart canvas not found');
+                return;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            
+            // 固定范围：0-500nm，步进5nm
+            const wavefrontErrors = [];
+            const srGuideValues = []; // 导星波长(589nm)的SR
+            const srTargetValues = []; // 观测波长(1550nm)的SR
+            
+            for (let error = 0; error <= 500; error += 5) {
+                wavefrontErrors.push(error);
+                
+                // 计算导星波长(589nm)的斯特列尔比
+                const errorRadGuide = error * 1e-9 / (589e-9) * 2 * Math.PI;
+                const SR_guide = Math.exp(-errorRadGuide * errorRadGuide);
+                srGuideValues.push(SR_guide * 100);
+                
+                // 计算观测波长(1550nm)的斯特列尔比
+                const errorRadTarget = error * 1e-9 / (1550e-9) * 2 * Math.PI;
+                const SR_target = Math.exp(-errorRadTarget * errorRadTarget);
+                srTargetValues.push(SR_target * 100);
+            }
+            
+            if (window.wavefrontSRChartInstance) {
+                window.wavefrontSRChartInstance.destroy();
+            }
+            
+            window.wavefrontSRChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: wavefrontErrors,
+                    datasets: [
+                        {
+                            label: 'SR@导星波长(589nm)',
+                            data: srGuideValues,
+                            borderColor: 'rgb(33, 150, 243)',
+                            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                            tension: 0.4,
+                            fill: false,
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'SR@观测波长(1550nm)',
+                            data: srTargetValues,
+                            borderColor: 'rgb(76, 175, 80)',
+                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                            tension: 0.4,
+                            fill: false,
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '波前误差与不同波长斯特列尔比关系 (0-300nm)',
+                            color: '#ffffff',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        legend: {
+                            labels: {
+                                color: '#ffffff',
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '波前误差 (nm)',
+                                color: '#ffffff',
+                                font: {
+                                    size: 14
+                                }
+                            },
+                            ticks: {
+                                color: '#ffffff',
+                                stepSize: 50
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '斯特列尔比 (%)',
+                                color: '#ffffff',
+                                font: {
+                                    size: 14
+                                }
+                            },
+                            ticks: {
+                                color: '#ffffff',
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            min: 0,
+                            max: 100,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 更新波前误差与耦合效率关系图表
+        function updateWavefrontCouplingChart(wavefrontErrors, srValues, couplingEfficiency) {
+            const ctx = document.getElementById('wavefrontCouplingChart').getContext('2d');
+            
+            if (window.wavefrontCouplingChart) {
+                window.wavefrontCouplingChart.destroy();
+            }
+            
+            window.wavefrontCouplingChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: wavefrontErrors,
+                    datasets: [
+                        {
+                            label: '斯特列尔比',
+                            data: srValues,
+                            borderColor: 'rgb(33, 150, 243)',
+                            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                            tension: 0.4,
+                            fill: false
+                        },
+                        {
+                            label: '耦合效率',
+                            data: couplingEfficiency,
+                            borderColor: 'rgb(76, 175, 80)',
+                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                            tension: 0.4,
+                            fill: false,
+                            borderWidth: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '波前误差与耦合效率关系',
+                            color: '#e0e0e0',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        legend: {
+                            labels: {
+                                color: '#e0e0e0'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '波前误差 (nm)',
+                                color: '#e0e0e0'
+                            },
+                            ticks: {
+                                color: '#b0b0b0'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '效率 (%)',
+                                color: '#e0e0e0'
+                            },
+                            ticks: {
+                                color: '#b0b0b0'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         // 页面加载时自动计算
         window.addEventListener('load', function() {
-            // 初始化Mermaid
-            mermaid.initialize({
-                startOnLoad: true,
-                theme: 'dark',
-                securityLevel: 'loose'
-            });
-            
-            // 执行计算
+            // 初始化全局分析参数范围
+            window.analysisRanges = analyzer.getAllParameterRanges();
+            updateParameterRange();
             calculateAndDisplay();
         });
+        
+        // 选项卡切换时自动初始化相应图表
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabId = btn.getAttribute('data-tab');
+                
+                // 延迟执行图表初始化，确保DOM元素已显示
+                setTimeout(() => {
+                    if (tabId === 'system') {
+                        // 初始化波前残差与斯特列尔比关系图表
+                        createWavefrontSRChart();
+                    }
+                }, 100);
+            });
+        });
+        
+        // 修改calculateAndDisplay函数，在计算完成后自动更新所有图表
+        const originalCalculateAndDisplay = calculateAndDisplay;
+        calculateAndDisplay = function() {
+            originalCalculateAndDisplay();
+            // 自动更新参数分析图表
+            setTimeout(() => {
+                updateParameterChart();
+            }, 200);
+        };
     </script>
 </body>
 </html>
